@@ -1,1 +1,19 @@
-{"envId":"props-5gyd9ji1143b3cf0","version":"2.0","$schema":"https://framework-1258016615.tcloudbaseapp.com/schema/latest.json"}
+{
+    "envId": "test-7ggypkpn0dd471ba",
+    "version": "2.0",
+    "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
+    "functionRoot": "./functions",
+    "functions": [],
+    "framework": {
+        "name": "test",
+        "plugins": {
+            "vue": {
+                "use": "@cloudbase/framework-plugin-website",
+                "inputs": {
+                    "buildCommand": "npm run build",
+                    "outputPath": "dist"
+                }
+            }
+        }
+    }
+}

@@ -10,7 +10,7 @@
         </el-col>
       </el-row>
       <br>
-      <a-table :columns="columns" :data-source="datas" bordered>
+      <a-table :columns="columns" :data-source="datas" bordered size="middle">
         <template slot="originCourts" slot-scope="text, record, index">
           <a-checkbox-group :options="record.originCourts.map(myMap)" :disabled="!record.editable"
             :default-value="record.originCourts.map(mapValidCourts)" @change="(e) => checkboxChanged(e, record._id)" />
@@ -48,6 +48,7 @@ const columns = [
   },
   {
     title: '开放场地',
+    width: 600,
     dataIndex: 'originCourts',
     key: 'originCourts',
     scopedSlots: { customRender: 'originCourts' },
@@ -83,10 +84,15 @@ export default {
   },
   async created() {
     // 获取场地配置
-    const getCourts = await getCollectionsWithParam('courts', {})
+    const getCourts = await db.collection('courts').orderBy('_id', 'asc').get()
     if (getCourts.data.length <= 0) return
-    const originCourts = getCourts.data
-    originCourts.sort((a, b) => { return a._id - b._id })
+
+    const originCourts = []
+    getCourts.data.forEach((court) => {
+      if (court.name.length < 3) {
+        originCourts.push(court)
+      }
+    })
     originCourts.forEach(element => {
       element.valid = false
     });
@@ -130,7 +136,6 @@ export default {
         });
         this.$data.datas = newData
       }
-      // console.log(this.$data.datas)
     },
     edit(key) {
       const newData = [...this.$data.datas];
@@ -168,11 +173,11 @@ export default {
         const updateRes = await db.collection('periods').doc(key).update(newPeriod)
         console.log(updateRes)
         if (updateRes.updated === 1) {
-          console.log("更新成功")
+          this.$message.success('更新成功');
         } else if (updateRes.updated === 0) {
-          console.log("数据无变化")
+          this.$message.info('数据无变化');
         } else {
-          console.log("未知错误")
+          this.$message.error('更新失败');
         }
       }
       this.editingKey = '';

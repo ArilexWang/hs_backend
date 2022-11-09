@@ -9,27 +9,33 @@
             <el-dialog title="订单信息" :visible.sync="dialogFormVisible">
                 <el-form :model="newOrder">
                     <el-form-item label="手机号码" :label-width="formLabelWidth">
-                        <el-input v-model="newOrder.phoneNum" autocomplete="off"></el-input>
+                        <el-input v-model="newOrder.phoneNum" autocomplete="off" style="width: 200px"></el-input>
+                        <el-button style="margin-left: 10px" @click="newOrderSearchUser">查询余额</el-button>
+                        <div>余额：{{ newOrder.member.cash }}</div>
                     </el-form-item>
-                    <el-form-item label="选择场地" :label-width="formLabelWidth">
-                        <el-checkbox-group v-model="newOrder.courts">
-                            <el-checkbox v-for="court in courts" :key="court._id" :label="court" :name="court.name">{{
-                                court.name
-                            }}</el-checkbox>
-                        </el-checkbox-group>
-                    </el-form-item>
+
                     <el-form-item label="选择日期" :label-width="formLabelWidth">
-                        <el-date-picker v-model="newOrder.date" type="date" placeholder="选择日期" @change="pickeDate"> </el-date-picker>
+                        <el-date-picker v-model="newOrder.date" type="date" placeholder="选择日期" @change="pickeDate">
+                        </el-date-picker>
                     </el-form-item>
                     <el-form-item label="选择时间段" :label-width="formLabelWidth">
-                        <el-checkbox-group v-model="newOrder.periods" @change="selectPeriods" :max="1">
-                            <el-checkbox v-for="period in selectedPeriods" :key="period.name" :label="period" :name="period.name">{{
-                                period.name
-                            }}</el-checkbox>
+                        <el-radio-group v-model="newOrder.period" @change="selectedPeriod">
+                            <el-radio v-for="period in validPeriods" :key="period.format" :label="period"
+                                :name="period.format">{{
+                                        period.format
+                                }}</el-radio>
+                        </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label="选择场地" :label-width="formLabelWidth">
+                        <el-checkbox-group v-model="newOrder.courts" @change="selectedCourts">
+                            <el-checkbox v-for="court in validCourts" :key="court._id" :label="court"
+                                :name="court.name">{{
+                                        court.name
+                                }}</el-checkbox>
                         </el-checkbox-group>
                     </el-form-item>
                     <el-form-item label="总额" :label-width="formLabelWidth">
-                        <el-input v-model="newOrder.price" :disabled="true"></el-input>
+                        <el-input v-model="newOrder.price" :disabled="false" style="width:100px"></el-input>
                     </el-form-item>
                 </el-form>
                 <div slot="footer" class="dialog-footer">
@@ -55,7 +61,8 @@
             </el-table>
         </div>
         <div class="block">
-            <el-pagination layout="prev, pager, next" :total="pageCount" :page-size="pageSize" @current-change="handleCurrentChange">
+            <el-pagination layout="prev, pager, next" :total="pageCount" :page-size="pageSize"
+                @current-change="handleCurrentChange">
             </el-pagination>
         </div>
     </div>
@@ -72,6 +79,10 @@ import {
     addInfo
 } from "@/api";
 import { updateInfo } from "../api";
+import vue from "../main"
+import { Message } from 'element-ui';
+
+const db = vue.$app.database();
 
 export default {
     name: "other",
@@ -89,37 +100,39 @@ export default {
                 phoneNum: "",
                 courts: [],
                 date: "",
-                periods: [],
-                price: 0
+                period: {},
+                price: 0,
+                member: {},
             },
             courts: [],
             formLabelWidth: "120px",
             week: [],
-            selectedPeriods: []
+            validPeriods: [],
+            validCourts: [],
         };
     },
     created() {
-        getDatasByOrder("courts", "number", "asc").then(res => {
+        getDatasByOrder("courts", "_id", "asc").then(res => {
             this.$data.courts = res.data;
         });
-        getDatasByOrder("week", "number", "asc").then(res => {
-            this.$data.week = res.data;
-        });
-        getCollectionCountWithParam(this.$data.collection, { isVIP: false })
-            .then(res => {
-                this.$data.pageCount = res.total;
-            })
-            .catch(err => {
-                console.log(err);
-            });
+        // getDatasByOrder("week", "number", "asc").then(res => {
+        //     this.$data.week = res.data;
+        // });
+        // getCollectionCountWithParam(this.$data.collection, { isVIP: false })
+        //     .then(res => {
+        //         this.$data.pageCount = res.total;
+        //     })
+        //     .catch(err => {
+        //         console.log(err);
+        //     });
     },
     mounted() {
-        this.getCollection(this.$data.currentPage, this.$data.pageSize, {
-            isVIP: false
-        }).then(res => {
-            res.sort((a, b) => b.created - a.created);
-            this.$data.datas = res;
-        });
+        // this.getCollection(this.$data.currentPage, this.$data.pageSize, {
+        //     isVIP: false
+        // }).then(res => {
+        //     res.sort((a, b) => b.created - a.created);
+        //     this.$data.datas = res;
+        // });
     },
     methods: {
         handleCurrentChange(val) {
@@ -129,89 +142,77 @@ export default {
                 this.$data.datas = res;
             });
         },
-        pickeDate(value) {
+        async pickeDate() {
             this.$data.newOrder.periods = [];
             const numOfWeek = this.$data.newOrder.date.getDay();
-            const periods = this.$data.week.find(period => period._id == numOfWeek.toString());
-            var newPeriods = [];
-            periods.period.forEach(element => {
-                var startDate = new Date(value);
-                startDate.setHours(element.startHour);
-                startDate.setMinutes(element.startMinute);
-                const startFormat = startDate.format("hh:mm");
-                var endDate = new Date(value);
-                endDate.setHours(element.endHour);
-                endDate.setMinutes(element.endMinute);
-                const endFormat = endDate.format("hh:mm");
-                const tempPeriod = {
-                    start: startDate,
-                    end: endDate,
-                    halfPrice: element.halfPrice,
-                    fullPrice: element.fullPrice,
-                    name: startFormat + " - " + endFormat
-                };
-                newPeriods.push(tempPeriod);
-            });
-            this.$data.selectedPeriods = newPeriods;
+            const getPeriods = await db.collection('periods').where({
+                day: numOfWeek
+            }).get()
+            const validPeriods = getPeriods.data
+            validPeriods.map((item) => {
+                item.format = item.start.format("hh:mm") + ' - ' + item.end.format("hh:mm")
+                return item
+            })
+            this.$data.validPeriods = validPeriods
+        },
+        selectedPeriod(value) {
+            const validCourts = []
+            this.$data.courts.map((court) => {
+                if (value.courts.find(item => court._id === item)) {
+                    validCourts.push(court)
+                }
+            })
+            this.$data.validCourts = validCourts
+        },
+        selectedCourts(value) {
+            console.log(value)
+            const total = this.calculatePrice(value)
+            this.$data.newOrder.price = total
         },
         cancelCreate() {
             this.$data.dialogFormVisible = false;
             this.$data.newOrder = this.defaultNewOrder();
         },
+        async newOrderSearchUser() {
+            const getMember = await db.collection('members').where({
+                phoneNum: this.$data.newOrder.phoneNum
+            }).get()
+            if (getMember.data.length !== 1) {
+                this.$data.newOrder.member = { cash: '查询余额失败' }
+                return
+            }
+            const member = getMember.data[0]
+            this.$data.newOrder.member = member
+        },
         async createNewOrder() {
             const newOrder = this.$data.newOrder;
             if (newOrder.phoneNum.length == 0) {
-                this.$message({
-                    type: "error",
-                    message: "请输入手机号！"
-                });
+                Message.error("请输入手机号")
                 return;
             }
-
-            if (newOrder.periods.length == 0) {
-                this.$message({
-                    type: "error",
-                    message: "请选择时间段！"
-                });
-                this.$data.newOrder = this.defaultNewOrder();
-                return;
-            }
-            if (newOrder.periods.length > 1) {
-                this.$message({
-                    type: "error",
-                    message: "只能选择一个时间段！"
-                });
-                this.$data.newOrder = this.defaultNewOrder();
+            if (!newOrder.period._id) {
+                Message.error("请选择时间段")
                 return;
             }
             if (newOrder.courts.length == 0) {
-                this.$message({
-                    type: "error",
-                    message: "请选择场地！"
-                });
-                this.$data.newOrder = this.defaultNewOrder();
+                Message.error("请选择场地")
                 return;
             }
             const memberRes = await getCollectionsWithParam("members", { phoneNum: newOrder.phoneNum });
             if (memberRes.data.length == 0) {
-                this.$message({
-                    type: "error",
-                    message: "未查询到对应用户，请重新输入手机号！"
-                });
-                this.$data.newOrder = this.defaultNewOrder();
-                return;
-            }
-            const member = memberRes.data[0];
-            console.log(member);
-            if (member.cash < newOrder.price) {
-                this.$message({
-                    type: "error",
-                    message: "余额不足！用户余额为：" + member.cash
-                });
-                this.$data.newOrder = this.defaultNewOrder();
+                Message.error("未查询到对应用户，请重新输入手机号")
                 return;
             }
 
+            // newOrder.price = this.calculatePrice(newOrder.courts)
+            const member = memberRes.data[0];
+            if (member.cash < newOrder.price) {
+                Message.error("用户余额不足！")
+                return;
+            }
+            newOrder.member = member
+            console.log(newOrder)
+            return
             var orders = [];
             newOrder.periods.map((element, index) => {
                 var date = new Date();
@@ -280,42 +281,57 @@ export default {
                 this.$router.go(0);
             }, 1000);
         },
-        selectPeriods(value) {
-            console.log(value);
-            this.$data.newOrder.price = this.calculatePrice(this.$data.newOrder.courts, this.$data.newOrder.periods);
-        },
-        calculatePrice(courts, periods) {
+        calculatePrice(courts) {
             var totalCost = 0;
-            periods.forEach(element => {
-                const findNum = (search, array) => {
-                    for (var i in array) {
-                        if (array[i].number == search) {
-                            return true;
-                        }
+            const tempCourts = JSON.parse(
+                JSON.stringify(courts)
+            );
+            tempCourts.sort(function (a, b) { return a._id - b._id })
+            const findNum = (search, array) => {
+                for (var i in array) {
+                    if (array[i]._id == search) {
+                        return true;
                     }
-                    return false;
-                };
-                if (findNum(1, courts) && findNum(2, courts)) {
-                    totalCost += 400;
-                } else if (findNum(1, courts) || findNum(2, courts)) {
-                    totalCost += 280;
                 }
-                if (findNum(3, courts) && findNum(4, courts)) {
-                    totalCost += 400;
-                } else if (findNum(3, courts) || findNum(4, courts)) {
-                    totalCost += 280;
+                return false;
+            }
+            if (findNum(1, tempCourts) && findNum(2, tempCourts)) {
+                const targetCourt = this.$data.courts.find(item => 3 === item._id)
+                totalCost += targetCourt.price
+                for (let index = 0; index < 2; index++) {
+                    tempCourts.map((item, index) => {
+                        if (item._id === 1 || item._id === 2) {
+                            tempCourts.splice(index, 1)
+                        }
+                    })
                 }
-                if (findNum(5, courts) && findNum(6, courts)) {
-                    totalCost += element.fullPrice;
-                } else if (findNum(5, courts) || findNum(6, courts)) {
-                    totalCost += element.halfPrice;
+            }
+            if (findNum(4, tempCourts) && findNum(5, tempCourts)) {
+                const targetCourt = this.$data.courts.find(item => 9 === item._id)
+                totalCost += targetCourt.price
+                for (let index = 0; index < 2; index++) {
+                    tempCourts.map((item, index) => {
+                        if (item._id === 4 || item._id === 5) {
+                            tempCourts.splice(index, 1)
+                        }
+                    })
                 }
-                if (findNum(7, courts) && findNum(8, courts)) {
-                    totalCost += element.fullPrice;
-                } else if (findNum(7, courts) || findNum(8, courts)) {
-                    totalCost += element.halfPrice;
+            }
+            if (findNum(6, tempCourts) && findNum(7, tempCourts)) {
+                const targetCourt = this.$data.courts.find(item => 13 === item._id)
+                totalCost += targetCourt.price
+                for (let index = 0; index < 2; index++) {
+                    tempCourts.map((item, index) => {
+                        if (item._id === 6 || item._id === 7) {
+                            tempCourts.splice(index, 1)
+                        }
+                    })
                 }
-            });
+            }
+            tempCourts.forEach(element => {
+                console.log(element)
+                totalCost += element.price
+            })
             return totalCost;
         },
         defaultNewOrder() {
@@ -323,8 +339,9 @@ export default {
                 phoneNum: "",
                 courts: [],
                 date: "",
-                periods: [],
-                price: 0
+                period: [],
+                price: 0,
+                member: {}
             };
         },
         getCollection(currentPage, pageSize, param) {
@@ -459,7 +476,7 @@ export default {
         }
     }
 };
-Date.prototype.format = function(fmt) {
+Date.prototype.format = function (fmt) {
     var o = {
         "M+": this.getMonth() + 1, //月份
         "d+": this.getDate(), //日
@@ -481,4 +498,6 @@ Date.prototype.format = function(fmt) {
 };
 </script>
 
-<style></style>
+<style>
+
+</style>
