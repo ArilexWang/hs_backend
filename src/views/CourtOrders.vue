@@ -11,31 +11,39 @@
                     <el-form-item label="手机号码" :label-width="formLabelWidth">
                         <el-input v-model="newOrder.phoneNum" autocomplete="off" style="width: 200px"></el-input>
                         <el-button style="margin-left: 10px" @click="newOrderSearchUser">查询余额</el-button>
-                        <div>余额：{{ newOrder.member.cash }}</div>
+                        <div>余额：{{ new_order_member.cash }}</div>
                     </el-form-item>
 
                     <el-form-item label="选择日期" :label-width="formLabelWidth">
-                        <el-date-picker v-model="newOrder.date" type="date" placeholder="选择日期" @change="pickeDate">
+                        <el-date-picker v-model="new_order_date" type="date" placeholder="选择日期" @change="pickeDate">
                         </el-date-picker>
                     </el-form-item>
                     <el-form-item label="选择时间段" :label-width="formLabelWidth">
-                        <el-radio-group v-model="newOrder.period" @change="selectedPeriod">
+                        <el-radio-group v-model="new_order_period" @change="selectedPeriod">
                             <el-radio v-for="period in validPeriods" :key="period.format" :label="period"
                                 :name="period.format">{{
-                                        period.format
+                                period.format
                                 }}</el-radio>
                         </el-radio-group>
                     </el-form-item>
                     <el-form-item label="选择场地" :label-width="formLabelWidth">
-                        <el-checkbox-group v-model="newOrder.courts" @change="selectedCourts">
+                        <el-checkbox-group v-model="newOrder.selectedCourts" @change="onSelectedCourts">
                             <el-checkbox v-for="court in validCourts" :key="court._id" :label="court"
                                 :name="court.name">{{
-                                        court.name
+                                court.name
                                 }}</el-checkbox>
                         </el-checkbox-group>
                     </el-form-item>
+                    <el-form-item label="投篮机" :label-width="formLabelWidth">
+                        <el-checkbox v-model="newOrder.firstShoot">前一小时</el-checkbox>
+                        <el-checkbox v-model="newOrder.secondShoot">后一小时</el-checkbox>
+                    </el-form-item>
                     <el-form-item label="总额" :label-width="formLabelWidth">
                         <el-input v-model="newOrder.price" :disabled="false" style="width:100px"></el-input>
+                        <el-button style="margin-left: 10px" @click="onCalculateClick">计算价格</el-button>
+                    </el-form-item>
+                    <el-form-item label="裁判" :label-width="formLabelWidth">
+                        <el-checkbox v-model="newOrder.needReferee">需要</el-checkbox>
                     </el-form-item>
                 </el-form>
                 <div slot="footer" class="dialog-footer">
@@ -44,15 +52,19 @@
                 </div>
             </el-dialog>
 
-            <el-table :data="datas" height="550" fit border style="">
-                <el-table-column prop="createdFormat" label="下单时间" width="150"> </el-table-column>
-                <el-table-column prop="_id" label="业务订单号" width="130"> </el-table-column>
-                <el-table-column prop="payMsg.transactionId" label="支付订单号" width="150"> </el-table-column>
-                <el-table-column prop="orderDateFormat" label="场地时间" width="200"> </el-table-column>
-                <el-table-column prop="courtsFormat" label="场地" width="150"> </el-table-column>
-                <el-table-column prop="userInfo.nickName" label="用户昵称" width="120"> </el-table-column>
-                <el-table-column prop="userInfo.phoneNum" label="用户联系方式" width="120"> </el-table-column>
-                <el-table-column prop="hasRefundFormat" label="退款" width="120"> </el-table-column>
+            <el-table :data="orders" height="250" fit border style="">
+                <el-table-column prop="createdFormat" label="下单时间" width="170"> </el-table-column>
+                <el-table-column prop="payMsg" label="支付订单号" width="150"> </el-table-column>
+                <el-table-column prop="statusFormat" label="订单状态" width="100"> </el-table-column>
+                <el-table-column prop="orderDate" label="场地时间" width="200"> </el-table-column>
+                <el-table-column prop="courtsFormat" label="场地" width="120"> </el-table-column>
+                <el-table-column prop="refereeFormat" label="裁判" width="80"> </el-table-column>
+                <el-table-column prop="shootFormat" label="投篮机" width="120"> </el-table-column>
+                <el-table-column prop="price" label="订单金额" width="100"> </el-table-column>
+                <el-table-column prop="actualPrice" label="实付金额" width="100"> </el-table-column>
+                <el-table-column prop="costIntegral" label="使用积分" width="100"> </el-table-column>
+                <el-table-column prop="member.phoneNum" label="用户联系方式" width="120"> </el-table-column>
+                <!-- <el-table-column prop="hasRefundFormat" label="退款" width="120"> </el-table-column> -->
                 <el-table-column label="操作" width="150">
                     <template slot-scope="scope">
                         <el-button @click="handleDelete(scope.row)" size="mini" type="danger">删除</el-button>
@@ -61,7 +73,7 @@
             </el-table>
         </div>
         <div class="block">
-            <el-pagination layout="prev, pager, next" :total="pageCount" :page-size="pageSize"
+            <el-pagination layout="prev, pager, next" :total="totalCount" :page-size="pageSize"
                 @current-change="handleCurrentChange">
             </el-pagination>
         </div>
@@ -70,40 +82,44 @@
 
 <script>
 import {
-    getCollectionCountWithParam,
-    getCollectionsByPageWithParamAndOrder,
     deleteInfo,
-    getDatasByOrder,
-    callCloudFunction,
     getCollectionsWithParam,
-    addInfo
 } from "@/api";
-import { updateInfo } from "../api";
+
 import vue from "../main"
 import { Message } from 'element-ui';
+import dateFormat from "dateformat";
 
 const db = vue.$app.database();
-
+const COLLECTION = 'court_orders'
+const PAGE_SIZE = 20
 export default {
     name: "other",
     data() {
         return {
-            pageCount: 0,
+            totalCount: 0,
             currentPage: 1,
-            pageSize: 20,
-            datas: [],
+            pageSize: PAGE_SIZE,
+            originDatas: [],
+            orders: [],
             newData: {},
             search: "",
-            collection: "courtOrders",
             dialogFormVisible: false,
+            new_order_member: {},
+            new_order_date: '',
+            new_order_period: {},
             newOrder: {
-                phoneNum: "",
-                courts: [],
-                date: "",
-                period: {},
+                start: 0,
+                end: 0,
+                needReferee: false,
+                firstShoot: false,
+                secondShoot: false,
+                selectedCourts: [],
                 price: 0,
-                member: {},
+                useIntegral: false,
+                _openid: ''
             },
+
             courts: [],
             formLabelWidth: "120px",
             week: [],
@@ -111,63 +127,101 @@ export default {
             validCourts: [],
         };
     },
-    created() {
-        getDatasByOrder("courts", "_id", "asc").then(res => {
-            this.$data.courts = res.data;
-        });
-        // getDatasByOrder("week", "number", "asc").then(res => {
-        //     this.$data.week = res.data;
+    async created() {
+        // getDatasByOrder("courts", "_id", "asc").then(res => {
+        //     this.$data.courts = res.data;
         // });
-        // getCollectionCountWithParam(this.$data.collection, { isVIP: false })
-        //     .then(res => {
-        //         this.$data.pageCount = res.total;
-        //     })
-        //     .catch(err => {
-        //         console.log(err);
-        //     });
+        // const getOrders = await db.collection('court_orders').
+        const countResult = await db.collection(COLLECTION).count()
+        const total = countResult.total
+        this.$data.totalCount = total
+        var orders = await this.getCurrenPageCollections(this.$data.currentPage)
+        console.log(orders)
+        for (let index = 0; index < orders.length; index++) {
+            const item = orders[index];
+            item.createdFormat = dateFormat(item.created, 'yyyy-mm-dd HH:MM:ss')
+            item.payMsg = item.payBy === 1 ? '微信支付' : '余额支付'
+            switch (item.status) {
+                case 0:
+                    item.statusFormat = '未支付'
+                    break;
+                case 1:
+                    item.statusFormat = '已支付'
+                    break
+                case 2:
+                    item.statusFormat = '已退款'
+                    break
+                default:
+                    break;
+            }
+            item.orderDate = dateFormat(item.start, 'yyyy-mm-dd HH:MM') + ' - ' + dateFormat(item.end, 'HH:MM')
+            item.courtsFormat = item.selectedCourts.map((item) => {
+                return item.name
+            }).join(',')
+            item.refereeFormat = item.needReferee ? '需要裁判' : ''
+            if (item.firstShoot && item.secondShoot) {
+                item.shootFormat = '两小时投篮机'
+            } else if (item.firstShoot) {
+                item.shootFormat = '前一小时投篮机'
+            } else if (item.secondShoot) {
+                item.shootFormat = '后一小时投篮机'
+            }
+            const getMember = await db.collection('members').where({
+                _openid: item._openid
+            }).get()
+            item.member = getMember.data[0]
+        }
+        this.$data.orders = orders
     },
     mounted() {
-        // this.getCollection(this.$data.currentPage, this.$data.pageSize, {
-        //     isVIP: false
-        // }).then(res => {
-        //     res.sort((a, b) => b.created - a.created);
-        //     this.$data.datas = res;
-        // });
     },
     methods: {
+        async getCurrenPageCollections(currentPage) {
+            const offset = (currentPage - 1) * PAGE_SIZE
+            const getCollections = await db.collection(COLLECTION).skip(offset).limit(PAGE_SIZE).orderBy('created', 'desc').get()
+            return getCollections.data
+        },
         handleCurrentChange(val) {
-            this.getCollection(val, this.$data.pageSize, {
-                isVIP: false
-            }).then(res => {
-                this.$data.datas = res;
-            });
+
         },
         async pickeDate() {
-            this.$data.newOrder.periods = [];
-            const numOfWeek = this.$data.newOrder.date.getDay();
+            const numOfWeek = this.$data.new_order_date.getDay();
             const getPeriods = await db.collection('periods').where({
                 day: numOfWeek
             }).get()
-            const validPeriods = getPeriods.data
+            const validPeriods = []
+            for (let index = 0; index < getPeriods.data.length; index++) {
+                const element = getPeriods.data[index];
+                const res = await vue.$app.callFunction({
+                    name: "generateCurrentPeriod",
+                    data: {
+                        period: element,
+                        date: this.$data.new_order_date.getTime()
+                    },
+                })
+                validPeriods.push(res.result)
+            }
             validPeriods.map((item) => {
-                item.format = item.start.format("hh:mm") + ' - ' + item.end.format("hh:mm")
+                item.format = dateFormat(item.start, 'HH:MM') + ' - ' + dateFormat(item.end, 'HH:MM')
                 return item
             })
             this.$data.validPeriods = validPeriods
         },
         selectedPeriod(value) {
+            console.log(value)
             const validCourts = []
-            this.$data.courts.map((court) => {
-                if (value.courts.find(item => court._id === item)) {
-                    validCourts.push(court)
+            value.courts.forEach(element => {
+                if (element.status === 1) {
+                    validCourts.push(element)
                 }
-            })
+            });
             this.$data.validCourts = validCourts
         },
-        selectedCourts(value) {
-            console.log(value)
-            const total = this.calculatePrice(value)
-            this.$data.newOrder.price = total
+        onSelectedCourts(value) {
+            this.$data.new_order_period.selectedCourts = value
+        },
+        onCalculateClick() {
+
         },
         cancelCreate() {
             this.$data.dialogFormVisible = false;
@@ -178,11 +232,11 @@ export default {
                 phoneNum: this.$data.newOrder.phoneNum
             }).get()
             if (getMember.data.length !== 1) {
-                this.$data.newOrder.member = { cash: '查询余额失败' }
+                this.$data.new_order_member = { cash: '查询余额失败' }
                 return
             }
             const member = getMember.data[0]
-            this.$data.newOrder.member = member
+            this.$data.newOrder._openid = member._openid
         },
         async createNewOrder() {
             const newOrder = this.$data.newOrder;
@@ -190,7 +244,7 @@ export default {
                 Message.error("请输入手机号")
                 return;
             }
-            if (!newOrder.period._id) {
+            if (!newOrder.period) {
                 Message.error("请选择时间段")
                 return;
             }
@@ -211,129 +265,32 @@ export default {
                 return;
             }
             newOrder.member = member
-            console.log(newOrder)
+            if (isNaN(newOrder.price)) {
+                Message.error("请输入合法金额")
+                newOrder.price = 0
+            } else {
+                newOrder.price = Number(newOrder.price)
+            }
+            newOrder.status = 0
+            console.log(newOrder, JSON.stringify(newOrder))
             return
-            var orders = [];
-            newOrder.periods.map((element, index) => {
-                var date = new Date();
-                const currentSecond = date.getSeconds() + index;
-                date.setSeconds(currentSecond);
-                const orderMsg = {
-                    courts: newOrder.courts,
-                    start: element.start,
-                    end: element.end,
-                    outTradeNo: "0752" + date.format("yyyyMMddhhmmss"),
-                    price: newOrder.price
-                };
-                orders.push(orderMsg);
-            });
-            console.log("订单信息：", orders);
-            const promises = orders.map(element => {
-                return callCloudFunction("checkResource", element);
-            });
-            const res = await Promise.all(promises);
-            console.log(res, orders);
-            var allValid = true;
-            res.forEach(element => {
-                if (!element.result.resourceAvaliable) {
-                    allValid = false;
-                }
-            });
-            if (!allValid) {
-                this.$message({
-                    type: "error",
-                    message: "该时段部分场地已被占用"
-                });
-                this.$data.newOrder = this.defaultNewOrder();
-                return;
+            const res = await vue.$app.callFunction({ name: 'createCourtOrder', data: { params: newOrder } })
+            console.log(res)
+            if (!res.result._id) {
+                Message.error(res.result.errorMsg ? res.result.errorMsg : "新建订单失败")
+                return
             }
-            const newOrderPromises = orders.map((element, index) => {
-                element.resourceIds = res[index].result.resourceIds;
-                const param = {
-                    created: new Date(),
-                    _id: element.outTradeNo,
-                    orderMsg: element,
-                    validCount: 40 * element.courts.length,
-                    isVIP: false,
-                    hasRefund: false,
-                    userInfo: member,
-                    payBy: "余额支付",
-                    source: "后台订单",
-                    remain: member.cash - element.price,
-                    _openid: member._openid
-                };
-                return addInfo(param, "courtOrders");
-            });
-            const newOrderRes = await Promise.all(newOrderPromises);
-            console.log("订单创建结果：", newOrderRes);
-            delete member._openid;
-            const updateMemberPromises = orders.map(element => {
-                member.cash -= element.price;
-                return updateInfo(member, "members");
-            });
-            const membersRes = await Promise.all(updateMemberPromises);
-            console.log("用户扣款结果：", newOrderRes);
-            this.$message({
-                type: "success",
-                message: "订单新建成功，即将刷新页面"
-            });
-            setTimeout(() => {
-                this.$router.go(0);
-            }, 1000);
+            const order = res.result
+            // 订单创建成功，确认订单
+            const confirmRes = await vue.$app.callFunction({ name: 'confirmCourtOrder', data: { orderId: order._id, payBy: 0 } })
+            console.log(confirmRes)
+            if (confirmRes.result.errorMsg.length > 0) {
+                Message.error(confirmRes.result.errorMsg)
+            }
+            Message.success("创建订单成功")
         },
-        calculatePrice(courts) {
-            var totalCost = 0;
-            const tempCourts = JSON.parse(
-                JSON.stringify(courts)
-            );
-            tempCourts.sort(function (a, b) { return a._id - b._id })
-            const findNum = (search, array) => {
-                for (var i in array) {
-                    if (array[i]._id == search) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            if (findNum(1, tempCourts) && findNum(2, tempCourts)) {
-                const targetCourt = this.$data.courts.find(item => 3 === item._id)
-                totalCost += targetCourt.price
-                for (let index = 0; index < 2; index++) {
-                    tempCourts.map((item, index) => {
-                        if (item._id === 1 || item._id === 2) {
-                            tempCourts.splice(index, 1)
-                        }
-                    })
-                }
-            }
-            if (findNum(4, tempCourts) && findNum(5, tempCourts)) {
-                const targetCourt = this.$data.courts.find(item => 9 === item._id)
-                totalCost += targetCourt.price
-                for (let index = 0; index < 2; index++) {
-                    tempCourts.map((item, index) => {
-                        if (item._id === 4 || item._id === 5) {
-                            tempCourts.splice(index, 1)
-                        }
-                    })
-                }
-            }
-            if (findNum(6, tempCourts) && findNum(7, tempCourts)) {
-                const targetCourt = this.$data.courts.find(item => 13 === item._id)
-                totalCost += targetCourt.price
-                for (let index = 0; index < 2; index++) {
-                    tempCourts.map((item, index) => {
-                        if (item._id === 6 || item._id === 7) {
-                            tempCourts.splice(index, 1)
-                        }
-                    })
-                }
-            }
-            tempCourts.forEach(element => {
-                console.log(element)
-                totalCost += element.price
-            })
-            return totalCost;
-        },
+
+
         defaultNewOrder() {
             return {
                 phoneNum: "",
@@ -343,37 +300,6 @@ export default {
                 price: 0,
                 member: {}
             };
-        },
-        getCollection(currentPage, pageSize, param) {
-            return new Promise((resolve, reject) => {
-                const offset = (currentPage - 1) * pageSize;
-                getCollectionsByPageWithParamAndOrder(this.$data.collection, offset, pageSize, param, "created", "desc")
-                    .then(res => {
-                        res.data.forEach(element => {
-                            element.createdFormat = this.$dateFormat(element.created, "yyyy-mm-dd HH:MM");
-                            element.courtsFormat = this.formatOrderCourts(element.orderMsg.courts);
-                            element.hasRefundFormat = element.hasRefund ? "已退款" : "未退款";
-                            if (!element.payMsg) {
-                                if (element.source == "后台订单") {
-                                    element.payMsg = { transactionId: "余额支付(后台)" };
-                                } else {
-                                    element.payMsg = { transactionId: "余额支付" };
-                                }
-                            }
-                            if (element.remain) {
-                                element.userInfo.nickName = element.userInfo.nickName + "(" + element.remain + ")";
-                            }
-                            element.orderDateFormat =
-                                this.$dateFormat(element.orderMsg.start, "yyyy-mm-dd HH:MM") +
-                                " - " +
-                                this.$dateFormat(element.orderMsg.end, "HH:MM");
-                        });
-                        resolve(res.data);
-                    })
-                    .catch(err => {
-                        reject(err);
-                    });
-            });
         },
         formatOrderCourts(courts) {
             let courtsStr = "";
@@ -447,24 +373,6 @@ export default {
                 });
         },
         searchClick() {
-            getCollectionCountWithParam(this.$data.collection, {
-                isVIP: false,
-                "userInfo.phoneNum": this.$data.search
-            })
-                .then(res => {
-                    console.log(res);
-                    this.$data.pageCount = res.total;
-                    this.getCollection(this.$data.currentPage, this.$data.pageSize, {
-                        isVIP: false,
-                        "userInfo.phoneNum": this.$data.search
-                    }).then(datas => {
-                        datas.sort((a, b) => b.created - a.created);
-                        this.$data.datas = datas;
-                    });
-                })
-                .catch(err => {
-                    console.log(err);
-                });
         },
         clearClick() {
             this.getCollection(this.$data.currentPage, this.$data.pageSize, {
@@ -475,26 +383,6 @@ export default {
             });
         }
     }
-};
-Date.prototype.format = function (fmt) {
-    var o = {
-        "M+": this.getMonth() + 1, //月份
-        "d+": this.getDate(), //日
-        "h+": this.getHours(), //小时
-        "m+": this.getMinutes(), //分
-        "s+": this.getSeconds(), //秒
-        "q+": Math.floor((this.getMonth() + 3) / 3), //季度
-        S: this.getMilliseconds() //毫秒
-    };
-    if (/(y+)/.test(fmt)) {
-        fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
-    }
-    for (var k in o) {
-        if (new RegExp("(" + k + ")").test(fmt)) {
-            fmt = fmt.replace(RegExp.$1, RegExp.$1.length == 1 ? o[k] : ("00" + o[k]).substr(("" + o[k]).length));
-        }
-    }
-    return fmt;
 };
 </script>
 
