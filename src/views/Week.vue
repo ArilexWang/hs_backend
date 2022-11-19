@@ -10,62 +10,42 @@
         </el-col>
       </el-row>
       <br>
-      <a-table :columns="columns" :data-source="datas" bordered size="middle">
-        <template slot="originCourts" slot-scope="text, record, index">
-          <a-checkbox-group :options="record.originCourts.map(myMap)" :disabled="!record.editable"
-            :default-value="record.originCourts.map(mapValidCourts)" @change="(e) => checkboxChanged(e, record._id)" />
-        </template>
-        <template slot="operation" slot-scope="text, record, index">
-          <div class="editable-row-operations">
-            <span v-if="record.editable">
-              <a-popconfirm title="确认保存吗?" @confirm="() => save(record._id)">
-                <a style="margin-left: 10px;">保存</a>
-              </a-popconfirm>
-              <a-popconfirm title="确认取消吗?" @confirm="() => cancel(record._id)">
-                <a style="margin-left: 10px;">取消</a>
-              </a-popconfirm>
-            </span>
-            <span v-else>
-              <a :disabled="editingKey !== ''" @click="() => edit(record._id)">编辑</a>
-            </span>
-          </div>
-        </template>
-      </a-table>
+      <el-table height="550" :data="periods" fit border style="">
+        <el-table-column prop="dateFormat" label="时间段" width="150"> </el-table-column>
+        <el-table-column label="开放场地" width="450">
+          <template slot-scope="scope">
+            <el-checkbox-group v-model="scope.row.validCourts" @change="checkBoxChanged">
+              <el-checkbox v-for="court in scope.row.allCourts" :key="court._id" :label="court">
+              </el-checkbox>
+            </el-checkbox-group>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100">
+          <template slot-scope="scope">
+            <el-popconfirm @confirm="handleUpdate(scope)" title="确定保存吗？">
+              <el-button slot="reference" size="mini">保存</el-button>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
+
+      </el-table>
     </div>
   </div>
 </template>
 
 <script>
 import vue from "../main"
-import { getCollectionsWithParam, updateInfo } from "../api"
-const db = vue.$app.database();
+var _ = require('lodash');
+import dateFormat from "dateformat";
+import { Message, Loading } from 'element-ui';
 
-const columns = [
-  {
-    dataIndex: 'hour',
-    key: 'hour',
-    title: '时间段'
-  },
-  {
-    title: '开放场地',
-    width: 600,
-    dataIndex: 'originCourts',
-    key: 'originCourts',
-    scopedSlots: { customRender: 'originCourts' },
-  },
-  {
-    title: '操作',
-    dataIndex: 'operation',
-    scopedSlots: { customRender: 'operation' },
-  },
-];
+const db = vue.$app.database();
 
 export default {
   name: "week",
   data() {
     return {
       datas: [],
-      columns,
       editingKey: '',
       newData: [{}],
       collection: "week",
@@ -79,124 +59,79 @@ export default {
         { value: 6, label: "星期六" },
       ],
       selectedValue: 6,
-      cacheDatas: [],
+      periods: [],
     };
   },
   async created() {
-    // 获取场地配置
-    const getCourts = await db.collection('courts').orderBy('_id', 'asc').get()
-    if (getCourts.data.length <= 0) return
 
-    const originCourts = []
-    getCourts.data.forEach((court) => {
-      if (court.name.length < 3) {
-        originCourts.push(court)
-      }
-    })
-    originCourts.forEach(element => {
-      element.valid = false
-    });
 
-    // // 获取时间段配置
-    const getPeriods = await getCollectionsWithParam('periods', { day: this.$data.selectedValue })
-    if (getPeriods.data.length <= 0) {
-      return
-    }
-    const periods = getPeriods.data
-
-    const newPeriods = periods.map((item) => {
-      const hour = vue.$dateFormat(item.start, "HH:MM") + ' - ' + vue.$dateFormat(item.end, "HH:MM")
-      item.hour = hour
-      item.key = item._id
-      item.courts.forEach(court => {
-        originCourts.map((item) => {
-          if (item._id == court) {
-            item.valid = true
-          }
-        })
-      });
-      item.originCourts = originCourts
-      return item
-    })
-    this.$data.datas = newPeriods
-    this.$data.cacheDatas = this.$data.datas.map(item => ({ ...item }));
+  },
+  async mounted() {
+    await this.generatePeriod()
   },
   methods: {
-    selectChanged(value) {
-      console.log(value, this.$data.selectOptions[value]);
-    },
-    checkboxChanged(e, key) {
-      const newData = [...this.$data.datas];
-      const target = newData.find(item => key === item._id);
-      if (target) {
-        target.originCourts.map((item) => { item.valid = false })
-        e.forEach(element => {
-          const targetCourt = target.originCourts.find(item => element === item.name)
-          targetCourt.valid = true
-        });
-        this.$data.datas = newData
-      }
-    },
-    edit(key) {
-      const newData = [...this.$data.datas];
-      const target = newData.find(item => key === item._id);
-      this.editingKey = key;
-      if (target) {
-        target.editable = true;
-        this.$data.datas = newData;
-      }
-    },
-    async save(key) {
-      const newData = [...this.$data.datas];
-      const newCacheData = [...this.$data.cacheDatas];
-      const target = newData.find(item => key === item._id);
-      const targetCache = newCacheData.find(item => key === item._id);
-      if (target && targetCache) {
-        delete target.editable;
-        this.$data.datas = newData;
-        Object.assign(targetCache, target);
-        this.$data.cacheDatas = newCacheData;
-
-        const newPeriod = {}
-        Object.assign(newPeriod, target)
-        newPeriod.courts = []
-        newPeriod.originCourts.forEach(element => {
-          if (element.valid === true) {
-            newPeriod.courts.push(element._id)
+    async generatePeriod() {
+      // 获取所有场地信息
+      const getCourts = await db.collection('courts').where({ _id: db.command.lt(7) }).get()
+      const originCourts = getCourts.data
+      console.log('originCourts', originCourts)
+      // 获取时间段信息
+      const currentDay = this.$data.selectedValue
+      const getPeriods = await db.collection('periods').where({
+        day: currentDay
+      }).get()
+      console.log('getPeriods', getPeriods)
+      // 组合时间段和场地
+      const periods = getPeriods.data.map((item) => {
+        // 关键，需要深拷贝
+        const allCourts = _.cloneDeep(originCourts)
+        item.allOriginCourts = allCourts
+        item.dateFormat = dateFormat(item.start, 'HH:MM') + ' - ' + dateFormat(item.end, 'HH:MM')
+        item.allCourts = allCourts.map((item) => {
+          return item.name
+        })
+        const validCourts = []
+        allCourts.forEach(court => {
+          const target = item.courts.find(item => item === court._id)
+          if (target !== undefined) {
+            validCourts.push(court.name)
           }
         });
-        delete newPeriod.key
-        delete newPeriod.originCourts
-        delete newPeriod._id
-        delete newPeriod.hour
-        console.log(newPeriod)
-        const updateRes = await db.collection('periods').doc(key).update(newPeriod)
-        console.log(updateRes)
-        if (updateRes.updated === 1) {
-          this.$message.success('更新成功');
-        } else if (updateRes.updated === 0) {
-          this.$message.info('数据无变化');
-        } else {
-          this.$message.error('更新失败');
-        }
+        item.validCourts = validCourts
+        return item
+      })
+      console.log('periods', periods)
+      this.$data.periods = periods
+    },
+    async selectChanged() {
+      console.log(this.$data.selectedValue)
+      await this.generatePeriod()
+    },
+    checkBoxChanged(value) {
+      console.log(value)
+    },
+    async handleUpdate(value) {
+      console.log(value)
+      const period = value.row
+      const validCourtIds = period.validCourts.map((item) => {
+        const target = period.allOriginCourts.find(court => court.name === item)
+        return target._id
+      })
+      console.log(validCourtIds)
+      const updateRes = await db.collection('periods').doc(period._id).update({
+        courts: validCourtIds
+      })
+      console.log(updateRes)
+      if (updateRes.updated === 1) {
+        Message.success('更新开放场地成功')
+        return
       }
-      this.editingKey = '';
-    },
-    cancel(key) {
-      const newData = [...this.$data.datas];
-      const target = newData.find(item => key === item._id);
-      this.editingKey = '';
-      if (target) {
-        Object.assign(target, this.$data.cacheDatas.find(item => key === item._id));
-        delete target.editable;
-        this.$data.datas = newData;
+      if (updateRes.updated === 0) {
+        Message.info('场地数据无变化')
+        return
       }
-    },
-    myMap(e) {
-      return e.name
-    },
-    mapValidCourts(e) {
-      if (e.valid) return e.name
+
+      Message.error('更新开放场地失败')
     }
   },
 };

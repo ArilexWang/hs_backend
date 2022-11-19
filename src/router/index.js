@@ -54,7 +54,7 @@ export const asyncRoutes = {
     recharge: {
         path: '/recharge', // 点击侧边栏跳到一个单独的路由页面，需要定义，层级和其他顶级路由一样
         name: 'recharge',
-        meta: { title: '充值信息' },
+        meta: { title: '散客卡配置' },
         component: () => import('../views/Recharge.vue'),
     },
     cash: {
@@ -81,11 +81,11 @@ export const asyncRoutes = {
         meta: { title: '日期' },
         component: () => import('../views/Week.vue'),
     },
-    vipcourt: {
-        path: '/vipcourt',
-        name: 'vipcourt',
-        meta: { title: 'VIP' },
-        component: () => import('../views/vip/vipCourt.vue'),
+    member_record: {
+        path: '/member_record', // 点击侧边栏跳到一个单独的路由页面，需要定义，层级和其他顶级路由一样
+        name: 'member_record',
+        meta: { title: '修改用户信息记录' },
+        component: () => import('../views/MemberRecord.vue'),
     },
     t1: {
         path: 't1',

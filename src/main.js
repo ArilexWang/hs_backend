@@ -29,7 +29,7 @@ const auth = app.auth({
     persistence: 'local',
 })
 if (auth.hasLoginState()) {
-    console.log('haslogin')
+    console.log('haslogin', auth)
     // 此时已经登录
 } else {
     console.log('has not login')

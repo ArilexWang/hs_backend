@@ -2,56 +2,53 @@
   <div class="home-container">
     <div class="home-content">
       <el-table :data="newData" fit border style="margin-top: 10px">
-        <el-table-column prop="price" label="充值金额" width="120">
+        <el-table-column prop="name" label="名称" width="120">
           <template slot-scope="scope">
-            <el-input type="number" v-model="scope.row.recharge"></el-input>
+            <el-input autocomplete="off" v-model="scope.row.name"></el-input>
           </template>
         </el-table-column>
-        <el-table-column prop="price" label="赠送金额" width="120">
+        <el-table-column prop="value" label="价格" width="120">
           <template slot-scope="scope">
-            <el-input type="number" v-model="scope.row.handsel"></el-input>
+            <el-input type="number" v-model="scope.row.value"></el-input>
+          </template>
+        </el-table-column>
+        <el-table-column prop="extra" label="赠送" width="120">
+          <template slot-scope="scope">
+            <el-input type="number" v-model="scope.row.extra"></el-input>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150">
           <template slot-scope="scope">
-            <el-button
-              @click="handleAdd(scope.row)"
-              size="mini"
-              type="primary"
-              icon="el-icon-circle-plus"
-              >新增</el-button
-            >
+            <el-popconfirm @confirm="handleAdd(scope.row)" title="确定新增吗？">
+              <el-button slot="reference" size="mini" type="primary">新增</el-button>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
-      <el-table
-        :data="datas"
-        :default-sort="{ prop: 'price' }"
-        height="450"
-        border
-        style="margin-top: 10px"
-      >
-        <el-table-column prop="price" label="充值金额" width="120">
+      <el-table :data="datas" :default-sort="{ prop: 'price' }" height="450" border style="margin-top: 10px">
+        <el-table-column prop="name" label="名称" width="150">
           <template slot-scope="scope">
-            <el-input type="number" v-model="scope.row.recharge"></el-input>
+            <el-input v-model="scope.row.name"></el-input>
           </template>
         </el-table-column>
-        <el-table-column prop="value" label="赠送金额" width="120">
+        <el-table-column prop="value" label="价格" width="120">
           <template slot-scope="scope">
-            <el-input type="number" v-model="scope.row.handsel"></el-input>
+            <el-input type="number" v-model="scope.row.value"></el-input>
+          </template>
+        </el-table-column>
+        <el-table-column prop="extra" label="赠送" width="120">
+          <template slot-scope="scope">
+            <el-input type="number" v-model="scope.row.extra"></el-input>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150">
           <template slot-scope="scope">
-            <el-button @click="handleEdit(scope.row)" size="mini"
-              >保存</el-button
-            >
-            <el-button
-              @click="handleDelete(scope.row)"
-              size="mini"
-              type="danger"
-              >删除</el-button
-            >
+            <el-popconfirm @confirm="handleEdit(scope.row)" title="确定保存吗？">
+              <el-button slot="reference" size="mini">保存</el-button>
+            </el-popconfirm>
+            <el-popconfirm @confirm="handleDelete(scope.row)" title="确定删除吗？">
+              <el-button slot="reference" size="mini" type="danger">删除</el-button>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -60,95 +57,87 @@
 </template>
 
 <script>
-/* eslint-disable quotes */
-/* eslint-disable indent */
-/* eslint-disable semi */
-/* eslint-disable radix */
-/* eslint-disable no-underscore-dangle */
+
 import { getDatas, updateInfo, deleteInfo, addInfo } from "@/api";
+import { Message, Loading } from 'element-ui';
+
+import vue from "../main"
+const db = vue.$app.database();
+const COLLECTION = 'cash'
 
 export default {
   name: "home",
   data() {
     return {
       datas: [],
-      newData: [{}],
-      collection: "cash",
+      newData: [{}]
     };
   },
   created() {
-    getDatas(this.$data.collection).then((res) => {
+    getDatas(COLLECTION).then(res => {
+      console.log(res);
       this.$data.datas = res.data;
     });
   },
   methods: {
-    handleEdit(info) {
-      this.$confirm("是否提交修改", "提示", {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
+    async handleEdit(info) {
+      console.log(info)
+      const updateRes = await db.collection(COLLECTION).doc(info._id).update({
+        name: info.name,
+        extra: parseInt(info.extra),
+        value: parseInt(info.value)
       })
-        .then(() => {
-          info.recharge = parseInt(info.recharge);
-          info.handsel = parseInt(info.handsel);
-          updateInfo(info, this.$data.collection).then((res) => {
-            console.log(res);
-            if (res.updated == 1) {
-              this.$message({
-                type: "success",
-                message: "已保存!请刷新页面",
-              });
-              getDatas(this.$data.collection).then((res) => {
-                this.$data.datas = res.data;
-              });
-            } else {
-              this.$message({
-                type: "fail",
-                message: "保存失败!",
-              });
-            }
-          });
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$router.go(0);
-          this.$message({
-            type: "info",
-            message: "保存失败",
-          });
-        });
+
+      if (updateRes.updated === 1) {
+        Message.success('更新成功')
+        this.$router.go(0)
+        return
+      }
+      if (updateRes.updated === 0) {
+        Message.info('数据无变化')
+        return
+      }
+      Message.error('更新失败')
     },
-    handleDelete(info) {
-      this.$confirm("是否删除当前充值信息", "提示", {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
-      }).then(() => {
-        deleteInfo(info, "recharge").then(() => {
-          this.$router.go(0);
-        });
-      });
+    async handleDelete(info) {
+      const deleteRes = await db.collection(COLLECTION).doc(info._id).remove()
+      console.log(deleteRes)
+      if (deleteRes.deleted === 1) {
+        Message.success('删除成功')
+        return
+      }
+      Message.error('删除失败')
     },
-    handleAdd(info) {
-      const that = this;
-      console.log(info);
-      addInfo(info, this.$data.collection).then((res) => {
-        console.log(res);
-        if (res.id) {
-          this.$message({
-            type: "success",
-            message: "新增成功!",
-          });
-          that.$router.go(0);
-        } else {
-          this.$message({
-            type: "info",
-            message: "新增失败!",
-          });
-        }
-      });
-    },
-  },
+    async handleAdd(info) {
+      if (!info.name) {
+        Message.error('请输入名称')
+        return
+      }
+      if (!info.value) {
+        Message.error('请输入价格')
+        return
+      }
+      if (!info.extra) {
+        Message.error('请输入赠送金额')
+        return
+      }
+      info.extra = parseInt(info.extra)
+      info.value = parseInt(info.value)
+      console.log(info)
+      const addRes = await db.collection(COLLECTION).add({
+        name: info.name,
+        extra: info.extra,
+        value: info.value
+      })
+      console.log(addRes)
+      if (addRes.id) {
+        Message.success('新增成功')
+        this.$router.go(0)
+        return
+      }
+      Message.error('新增失败')
+    }
+  }
 };
 </script>
 
@@ -157,6 +146,7 @@ export default {
   padding: 10px;
   padding-top: 5px;
 }
+
 .home-content {
   padding: 10px;
   border-radius: 5px;

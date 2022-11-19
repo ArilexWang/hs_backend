@@ -5,6 +5,7 @@ export function resetTokenAndClearUser() {
     // 退出登陆 清除用户资料
     vue.$app.auth().signOut().then(() => {
         console.log("sign out")
+        this.$router.push({ path: "/" });
     })
     // 重设路由
     resetRouter()

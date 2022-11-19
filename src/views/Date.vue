@@ -14,16 +14,7 @@
                         <div v-if="scope.row[item.name] && scope.row[item.name].needReferee">需要裁判</div>
                         <div v-if="scope.row[item.name] && scope.row[item.name].firstShoot">前一小时投篮机</div>
                         <div v-if="scope.row[item.name] && scope.row[item.name].firstShoot">后一小时投篮机</div>
-
-                        <!-- <div>{{scope.row.}}</div> -->
-                        <!-- <div
-                            v-if="scope.row.courtOrders[item._id] && scope.row.courtOrders[item._id].firstShoot && scope.row.courtOrders[item._id].secondShoot">
-                            两小时投篮机</div>
-                        <div v-if="scope.row.courtOrders[item._id] && scope.row.courtOrders[item._id].needReferee">需要裁判
-                        </div> -->
                     </template>
-                </el-table-column>
-                <el-table-column prop="shoot" label="投篮机" width="150">
                 </el-table-column>
             </el-table>
         </div>
@@ -34,7 +25,7 @@
 
 import vue from "../main.js";
 import dateFormat from "dateformat";
-
+import { Loading } from 'element-ui';
 
 const db = vue.$app.database();
 export default {
@@ -54,20 +45,23 @@ export default {
     },
     async created() {
         const currentDate = this.$data.value
+        let loadingInstance = Loading.service({ text: '正在加载当日概况' });
         const getCourts = await db.collection('courts').where({
             _id: db.command.lt(7)
         }).get()
         const courts = getCourts.data
         this.$data.courts = courts
-        this.getPeriod(currentDate)
+        await this.getPeriod(currentDate)
+        loadingInstance.close()
     },
     async mounted() {
         console.log("mouted");
     },
     methods: {
         async onPick() {
-            this.getPeriod(this.$data.value)
+            let loadingInstance = Loading.service({ text: '正在加载当日概况' });
             this.$data.period = await this.getPeriod(this.$data.value);
+            loadingInstance.close()
         },
         async getPeriod(currentDate) {
             const getPeriod = await db.collection('periods').where({
@@ -92,14 +86,12 @@ export default {
                 const getOrders = await db.collection('court_orders').where({
                     start: item.start
                 }).get()
-                console.log('item', item)
                 if (getOrders.data.length === 0) {
                     continue
                 }
                 const orders = getOrders.data
                 for (let index = 0; index < orders.length; index++) {
                     const element = orders[index];
-                    console.log(element._openid)
                     const getMember = await db.collection('members').where({
                         _openid: element._openid
                     }).get()
@@ -110,12 +102,12 @@ export default {
                 }
                 orders.forEach((order) => {
                     order.selectedCourts.forEach(selectedCourt => {
-                        console.log('selectedCourt', selectedCourt)
-                        item[selectedCourt.name] = order
+                        if (order.status === 1) {
+                            item[selectedCourt.name] = order
+                        }
                     })
                 })
             }
-            console.log('periods', periods)
             this.$data.periods = periods
         }
     }

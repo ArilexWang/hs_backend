@@ -76,7 +76,7 @@ export default {
         .signInWithEmailAndPassword(this.account, this.pwd)
         .then((loginState) => {
           console.log("wzzz", loginState)
-          // this.$router.push({ path: "/" });
+          this.$router.push({ path: "/" });
         })
         .catch((err) => {
           console.log(err);
