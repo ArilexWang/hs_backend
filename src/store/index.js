@@ -63,6 +63,12 @@ const store = new Vuex.Store({
                         text: '球场信息', // 文本内容
                     },
                     {
+                        name: 'shoot', // 要跳转的路由名称 不是路径
+                        size: 18, // icon大小
+                        type: 'md-home', // icon类型
+                        text: '篮球机配置', // 文本内容
+                    },
+                    {
                         name: 'recharge', // 要跳转的路由名称 不是路径
                         size: 18, // icon大小
                         type: 'ios-albums', // icon类型

@@ -33,6 +33,12 @@ export const asyncRoutes = {
         meta: { title: '主页' },
         component: () => import('../views/Home.vue'),
     },
+    shoot: {
+        path: 'shoot',
+        name: 'shoot',
+        meta: { title: '投篮机' },
+        component: () => import('../views/Shoot.vue'),
+    },
     other: {
         path: '/other', // 点击侧边栏跳到一个单独的路由页面，需要定义，层级和其他顶级路由一样
         name: 'other',

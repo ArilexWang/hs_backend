@@ -105,7 +105,9 @@ export default {
     },
     async selectChanged() {
       console.log(this.$data.selectedValue)
+      let loadingInstance = Loading.service({ text: '加载中' });
       await this.generatePeriod()
+      loadingInstance.close()
     },
     checkBoxChanged(value) {
       console.log(value)
@@ -130,7 +132,6 @@ export default {
         Message.info('场地数据无变化')
         return
       }
-
       Message.error('更新开放场地失败')
     }
   },

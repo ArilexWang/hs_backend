@@ -53,7 +53,7 @@
                 <el-table-column prop="actualPrice" label="实付金额" width="100"> </el-table-column>
                 <el-table-column prop="costIntegral" label="使用积分" width="100"> </el-table-column>
                 <el-table-column prop="member.phoneNum" label="用户联系方式" width="120"> </el-table-column>
-                <el-table-column label="操作" width="100">
+                <el-table-column v-if="isAdmin" label="操作" width="100">
                     <template slot-scope="scope">
                         <el-button v-if="scope.row.status === 1" @click="onRefundClick(scope)" size="mini"
                             type="warning">退款
@@ -86,6 +86,7 @@ export default {
     name: "other",
     data() {
         return {
+            isAdmin: false,
             totalCount: 0,
             currentPage: 1,
             pageSize: PAGE_SIZE,
@@ -175,6 +176,7 @@ export default {
 
     },
     async mounted() {
+        this.$data.isAdmin = vue.$user === 'admin'
         console.log(this.$data)
         let loadingInstance = Loading.service({ text: '加载中' });
         const datas = await this.filterDatas(1)

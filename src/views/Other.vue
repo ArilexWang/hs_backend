@@ -28,20 +28,20 @@
                 <el-table-column prop="phoneNum" label="电话号码" width="120"> </el-table-column>
                 <el-table-column prop="validTimes" label="散客次卡" width="120">
                     <template slot-scope="scope">
-                        <el-input type="number" v-model="scope.row.validTimes"></el-input>
+                        <el-input :disabled="!isAdmin" type="number" v-model="scope.row.validTimes"></el-input>
                     </template>
                 </el-table-column>
                 <el-table-column prop="integral" label="积分" width="120">
                     <template slot-scope="scope">
-                        <el-input type="number" v-model="scope.row.integral"></el-input>
+                        <el-input :disabled="!isAdmin" type="number" v-model="scope.row.integral"></el-input>
                     </template>
                 </el-table-column>
                 <el-table-column prop="cash" label="余额" width="120">
                     <template slot-scope="scope">
-                        <el-input type="number" v-model="scope.row.cash"></el-input>
+                        <el-input :disabled="!isAdmin" type="number" v-model="scope.row.cash"></el-input>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" width="100">
+                <el-table-column label="操作" width="100" v-if="isAdmin">
                     <template slot-scope="scope">
                         <el-button @click="handleUpdate(scope)" size="mini">保存</el-button>
                     </template>
@@ -84,6 +84,7 @@ export default {
             filterParams: {
                 phoneNum: '',
             },
+            isAdmin: false
         };
     },
     async created() {
@@ -99,7 +100,10 @@ export default {
         this.$data.datas = members
     },
     mounted() {
-
+        console.log(vue.$user)
+        if (vue.$user === 'admin') {
+            this.$data.isAdmin = true
+        }
     },
     methods: {
         async handleCurrentChange(val) {
@@ -196,7 +200,6 @@ export default {
         },
         async generateFilterOptions() {
             const filter = this.$data.filterParams
-            var member = {}
             const filterArr = []
             if (filter.phoneNum.length > 0) {
                 filterArr.push({

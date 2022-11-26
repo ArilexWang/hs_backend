@@ -59,15 +59,13 @@ export default {
       // }
     },
     register() {
-      console.log(this.account);
-      console.log(this.pwd);
-      // this.$app
-      //   .auth()
-      //   .signUpWithEmailAndPassword(this.account, this.pwd)
-      //   .then((res) => {
-      //     console.log(res);
-      //     // 发送验证邮件成功
-      //   });
+      vue.$app
+        .auth()
+        .signUpWithEmailAndPassword('hs_lanqiu@163.com', 'huishengtiyu123')
+        .then((res) => {
+          console.log(res);
+          // 发送验证邮件成功
+        });
     },
     forgetPwd() { },
     submit() {
@@ -75,7 +73,11 @@ export default {
         .auth()
         .signInWithEmailAndPassword(this.account, this.pwd)
         .then((loginState) => {
-          console.log("wzzz", loginState)
+          if (this.account === 'hs_huisheng@163.com') {
+            vue.$user = 'admin'
+          } else {
+            vue.$user = 'custom'
+          }
           this.$router.push({ path: "/" });
         })
         .catch((err) => {
