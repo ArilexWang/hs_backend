@@ -12,7 +12,7 @@
                         <div>{{ scope.row[item.name] ? scope.row[item.name].member.phoneNum : '' }}</div>
                         <div v-if="scope.row[item.name] && scope.row[item.name].needReferee">需要裁判</div>
                         <div v-if="scope.row[item.name] && scope.row[item.name].firstShoot">前一小时投篮机</div>
-                        <div v-if="scope.row[item.name] && scope.row[item.name].firstShoot">后一小时投篮机</div>
+                        <div v-if="scope.row[item.name] && scope.row[item.name].secondShoot">后一小时投篮机</div>
                     </template>
                 </el-table-column>
             </el-table>
@@ -86,15 +86,10 @@ export default {
                 period.dateFormat = dateFormat(period.start, 'HH:MM') + ' - ' + dateFormat(period.end, 'HH:MM')
                 periods.push(period)
             }
+            console.log(periods)
             for (let index = 0; index < periods.length; index++) {
                 const item = periods[index];
-                const getOrders = await db.collection('court_orders').where({
-                    start: item.start
-                }).get()
-                if (getOrders.data.length === 0) {
-                    continue
-                }
-                const orders = getOrders.data
+                const orders = item.orders
                 for (let index = 0; index < orders.length; index++) {
                     const element = orders[index];
                     const getMember = await db.collection('members').where({
