@@ -58,7 +58,8 @@
                         <el-button v-if="scope.row.status === 1" @click="onRefundClick(scope)" size="mini"
                             type="warning">退款
                         </el-button>
-                        <div v-else>已退款</div>
+                        <div v-if="scope.row.status === 0">未支付</div>
+                        <div v-if="scope.row.status === 2">已退款</div>
                     </template>
                 </el-table-column>
             </el-table>
@@ -195,7 +196,7 @@ export default {
             for (let index = 0; index < datas.length; index++) {
                 const item = datas[index];
                 item.createdFormat = dateFormat(item.created, 'yyyy-mm-dd HH:MM:ss')
-                item.payMsg = item.payBy === 1 ? '微信支付' : '余额支付'
+                item.payMsg = item.payBy === 1 ? item.transactionId : '余额支付'
                 switch (item.status) {
                     case 0:
                         item.statusFormat = '未支付'

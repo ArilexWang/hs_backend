@@ -73,12 +73,12 @@
                         <el-checkbox v-model="newOrder.firstShoot">前一小时</el-checkbox>
                         <el-checkbox v-model="newOrder.secondShoot">后一小时</el-checkbox>
                     </el-form-item>
+                    <el-form-item label="裁判" :label-width="formLabelWidth">
+                        <el-checkbox v-model="newOrder.needReferee">需要</el-checkbox>
+                    </el-form-item>
                     <el-form-item label="总额" :label-width="formLabelWidth">
                         <el-input v-model="newOrder.price" :disabled="false" style="width:100px"></el-input>
                         <el-button style="margin-left: 10px" @click="onCalculateClick">计算价格</el-button>
-                    </el-form-item>
-                    <el-form-item label="裁判" :label-width="formLabelWidth">
-                        <el-checkbox v-model="newOrder.needReferee">需要</el-checkbox>
                     </el-form-item>
                 </el-form>
                 <div slot="footer" class="dialog-footer">
