@@ -350,7 +350,8 @@ export default {
             const res = await vue.$app.callFunction({
                 name: 'refundRechargeOrder',
                 data: {
-                    orderid: order._id
+                    orderid: order._id,
+                    handleBy: 'backend'
                 }
             })
             if (res.result.errorMsg !== 'success') {

@@ -252,7 +252,7 @@ export default {
             for (let index = 0; index < datas.length; index++) {
                 const item = datas[index];
                 item.createdFormat = dateFormat(item.created, 'yyyy-mm-dd HH:MM:ss')
-                item.payMsg = item.payBy === 1 ? '微信支付' : '余额支付'
+                item.payMsg = item.payBy === 1 ? item.transactionId : '余额支付'
                 switch (item.status) {
                     case 0:
                         item.statusFormat = '未支付'
@@ -592,7 +592,8 @@ export default {
             const res = await vue.$app.callFunction({
                 name: 'refundCourtOrder',
                 data: {
-                    orderid: order._id
+                    orderid: order._id,
+                    handleBy: 'backend'
                 }
             })
             if (res.result.errorMsg !== 'success') {
